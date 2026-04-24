@@ -1,0 +1,128 @@
+# Run locally
+unzip fastapi-chat-clean.zip && cd fastapi-chat-clean
+cp .env.example .env          # add your OPENAI_API_KEY
+docker run -d -p 6379:6379 redis:7.2-alpine
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# Test
+python3 tests/test_endpoints.py
+
+
+===================================================================
+
+
+curl -X POST "http://localhost:8000/api/setup_index" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "pinecone",
+  "index_name": "fastapi-chat-clean",
+  "dimension": 512,
+  "recreate": true
+}'
+
+
+curl -X POST "http://localhost:8000/api/ingest" -H "Content-Type: application/json" -d '{
+  "db_provider": "pinecone",
+  "documents": [
+    "A fluffy cat is sleeping on the rug near the fireplace.",
+    "The dog is chasing a ball in the backyard.",
+    "Python is a versatile programming language for data science.",
+    "Vector databases enable semantic search at scale.",
+    "The feline curled up on the warm carpet beside the window."
+  ]
+}'
+
+
+curl -X POST "http://localhost:8000/api/retrieve" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "pinecone",
+  "query": "feline resting indoors",
+  "top_k": 5,
+  "rerank_top_n": 2
+}'
+
+===================================================================
+
+
+curl -X POST "http://localhost:8000/api/setup_index" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "weaviate",
+  "index_name": "fastapi",
+  "dimension": 1536,
+  "recreate": true
+}'
+
+
+curl -X POST "http://localhost:8000/api/ingest" -H "Content-Type: application/json" -d '{
+  "db_provider": "weaviate",
+  "documents": [
+    "A fluffy cat is sleeping on the rug near the fireplace.",
+    "The dog is chasing a ball in the backyard.",
+    "Python is a versatile programming language for data science.",
+    "Vector databases enable semantic search at scale.",
+    "The feline curled up on the warm carpet beside the window."
+  ]
+}'
+
+curl -X POST "http://localhost:8000/api/retrieve" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "weaviate",
+  "query": "feline resting indoors",
+  "top_k": 5,
+  "rerank_top_n": 2
+}'
+
+
+===================================================================
+
+
+curl -X POST "http://localhost:8000/api/setup_index" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "qdrant",
+  "index_name": "fastapi_chat_clean",
+  "dimension": 1536,
+  "recreate": true
+}'
+
+
+curl -X POST "http://localhost:8000/api/ingest" -H "Content-Type: application/json" -d '{
+  "db_provider": "qdrant",
+  "documents": [
+    "A fluffy cat is sleeping on the rug near the fireplace.",
+    "The dog is chasing a ball in the backyard.",
+    "Python is a versatile programming language for data science.",
+    "Vector databases enable semantic search at scale.",
+    "The feline curled up on the warm carpet beside the window."
+  ]
+}'
+
+curl -X POST "http://localhost:8000/api/retrieve" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "qdrant",
+  "query": "feline resting indoors",
+  "top_k": 5,
+  "rerank_top_n": 2
+}'
+
+
+===================================================================
+
+
+curl -X POST "http://localhost:8000/api/setup_index" \
+-H "Content-Type: application/json" \
+-d '{
+  "db_provider": "milvus",
+  "index_name": "fastapi_chat_clean",
+  "dimension": 1536,
+  "recreate": true
+}'
+
+
+===================================================================

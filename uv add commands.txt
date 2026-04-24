@@ -1,0 +1,11 @@
+uv add langchain langchain-openai python-dotenv langfuse dotenv jupyterlab ipykernel
+
+uv add rank_bm25 sentence_transformers numpy
+
+uv add pinecone-text
+
+uv add weaviate-client
+
+uv add qdrant-client[fastembed] fastembed
+
+uv add pymilvus[model] configparser
