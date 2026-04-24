@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 import weaviate
 from weaviate.classes.query import MetadataQuery
 from weaviate.classes.config import Configure, Property, DataType as WvDataType
+from app.vectordb.basevectorstore import BaseVectorStore
 import time
 
 from dotenv import load_dotenv
@@ -11,29 +12,23 @@ load_dotenv()
 
 openai_client = OpenAI()
 EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIM = 512 # Or 1536 depending on your existing setup
 
-def get_dense_embedding(text: str) -> List[float]:
+def get_dense_embedding(text: str, dimension:int) -> List[float]:
     return openai_client.embeddings.create(
-        input=text, model=EMBEDDING_MODEL, dimensions=EMBEDDING_DIM
+        input=text, model=EMBEDDING_MODEL, dimensions=dimension
     ).data[0].embedding
 
-class BaseVectorStore:
-    def create_index(self, index_name: str, dimension: int, recreate: bool = False):
-        raise NotImplementedError
-    def ingest(self, corpus: List[str]):
-        raise NotImplementedError
-    def hybrid_search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
-        raise NotImplementedError
-
 class WeaviateStore(BaseVectorStore):
-    def __init__(self, collection_name="fastapi"):
+    def __init__(self):
         self.client = weaviate.connect_to_weaviate_cloud(
             cluster_url=os.environ["WEAVIATE_URL"],
             auth_credentials=weaviate.auth.AuthApiKey(os.environ["WEAVIATE_API_KEY"])
         )
-        self.collection = self.client.collections.get(collection_name)
-    
+
+    def set_index(self, index_name="fastapi-chat-clean"):
+        self.collection = self.client.collections.get(index_name)
+        print(f"Weaviate Index : {self.collection}")
+
     def create_index(self, index_name: str, dimension: int, recreate: bool = False):
         # Weaviate refers to these as Collections
         if self.client.collections.exists(index_name):
@@ -53,18 +48,19 @@ class WeaviateStore(BaseVectorStore):
         )
         return f"Weaviate collection '{index_name}' created."
 
-    def ingest(self, corpus: List[str]):
+    def ingest(self, corpus: List[str], dimension:int):
         with self.collection.batch.dynamic() as batch:
             for i, text in enumerate(corpus):
+                print(f"\n\nWeaviate : {i} -- {text} ")
                 batch.add_object(
                     properties={"text": text, "doc_id": f"doc_{i}"},
-                    vector=get_dense_embedding(text)
+                    vector=get_dense_embedding(text, dimension)
                 )
 
-    def hybrid_search(self, query: str, top_k: int = 10):
+    def hybrid_search(self, query: str, dimension:int, top_k: int = 10):
         results = self.collection.query.hybrid(
             query=query,
-            vector=get_dense_embedding(query),
+            vector=get_dense_embedding(query, dimension),
             alpha=0.5,
             limit=top_k,
             return_metadata=MetadataQuery(score=True)

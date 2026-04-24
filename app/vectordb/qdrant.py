@@ -22,7 +22,7 @@ class QdrantStore(BaseVectorStore):
 
     def set_index(self, index_name="fastapi-chat-clean"):
         self.collection_name = index_name
-        print(f"Pinecone Index : {self.collection_name}")
+        print(f"Qdrant Index : {self.collection_name}")
 
     def create_index(self, index_name: str, dimension: int, recreate: bool = False):
         existing = [c.name for c in self.client.get_collections().collections]
@@ -65,7 +65,7 @@ class QdrantStore(BaseVectorStore):
     def ingest(self, corpus: List[str], dimension:int):
         points = []
         for i, text in enumerate(corpus):
-            print(f"\n\nQDRANT : {i} -- {text} ")
+            print(f"\n\nQdrant : {i} -- {text} ")
             points.append(qdrant_models.PointStruct(
                 id=i,
                 vector={

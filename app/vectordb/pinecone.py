@@ -60,7 +60,7 @@ class PineconeStore(BaseVectorStore):
     def ingest(self, corpus: List[str], dimension:int):
         records = []
         for i, text in enumerate(corpus):
-            print(f"\nIngestion For Text : {text}")
+            print(f"\n\nPinecone : {i} -- {text} ")
             dense_vec = get_dense_embedding(text, dimension)
             sparse_vec = self.bm25.encode_documents(text)
             records.append({
