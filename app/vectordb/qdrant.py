@@ -3,31 +3,26 @@ from openai import OpenAI
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient, models as qdrant_models
 from fastembed import SparseTextEmbedding
+from app.vectordb.basevectorstore import BaseVectorStore
 from dotenv import load_dotenv
 load_dotenv()
 
 openai_client = OpenAI()
 EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIM = 512 # Or 1536 depending on your existing setup
 
-def get_dense_embedding(text: str) -> List[float]:
+def get_dense_embedding(text: str, dimension:int) -> List[float]:
     return openai_client.embeddings.create(
-        input=text, model=EMBEDDING_MODEL
+        input=text, model=EMBEDDING_MODEL, dimensions=dimension
     ).data[0].embedding
 
-class BaseVectorStore:
-    def create_index(self, index_name: str, dimension: int, recreate: bool = False):
-        raise NotImplementedError
-    def ingest(self, corpus: List[str]):
-        raise NotImplementedError
-    def hybrid_search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
-        raise NotImplementedError
-
 class QdrantStore(BaseVectorStore):
-    def __init__(self, collection_name="fastapi_chat_clean"):
+    def __init__(self):
         self.client = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
-        self.collection_name = collection_name
         self.sparse_model = SparseTextEmbedding(model_name="prithvida/Splade_PP_en_v1")
+
+    def set_index(self, index_name="fastapi-chat-clean"):
+        self.collection_name = index_name
+        print(f"Pinecone Index : {self.collection_name}")
 
     def create_index(self, index_name: str, dimension: int, recreate: bool = False):
         existing = [c.name for c in self.client.get_collections().collections]
@@ -67,25 +62,25 @@ class QdrantStore(BaseVectorStore):
         res = list(self.sparse_model.embed([text]))[0]
         return qdrant_models.SparseVector(indices=res.indices.tolist(), values=res.values.tolist())
 
-    def ingest(self, corpus: List[str]):
+    def ingest(self, corpus: List[str], dimension:int):
         points = []
         for i, text in enumerate(corpus):
             print(f"\n\nQDRANT : {i} -- {text} ")
             points.append(qdrant_models.PointStruct(
                 id=i,
                 vector={
-                    "dense_idx": get_dense_embedding(text),
+                    "dense_idx": get_dense_embedding(text, dimension),
                     "sparse_idx": self.get_sparse_embedding(text)
                 },
                 payload={"text": text}
             ))
         self.client.upsert(collection_name=self.collection_name, points=points, wait=True)
 
-    def hybrid_search(self, query: str, top_k: int = 10):
+    def hybrid_search(self, query: str, dimension:int, top_k: int = 10):
         results = self.client.query_points(
             collection_name=self.collection_name,
             prefetch=[
-                qdrant_models.Prefetch(query=get_dense_embedding(query), using="dense_idx", limit=20),
+                qdrant_models.Prefetch(query=get_dense_embedding(query, dimension), using="dense_idx", limit=20),
                 qdrant_models.Prefetch(query=self.get_sparse_embedding(query), using="sparse_idx", limit=20),
             ],
             query=qdrant_models.FusionQuery(fusion=qdrant_models.Fusion.RRF),

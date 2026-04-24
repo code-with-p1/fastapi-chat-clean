@@ -5,11 +5,13 @@ from app.vectordb.qdrant import QdrantStore
 from app.vectordb.milvus import MilvusStore
 
 class BaseVectorStore:
+    def set_index(self, index_name: str):
+        raise NotImplementedError
     def create_index(self, index_name: str, dimension: int, recreate: bool = False):
         raise NotImplementedError
-    def ingest(self, corpus: List[str]):
+    def ingest(self, corpus: List[str], dimension: int):
         raise NotImplementedError
-    def hybrid_search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+    def hybrid_search(self, query: str, dimension:int, top_k: int = 10) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
 def get_vector_store(db_type: str) -> BaseVectorStore:

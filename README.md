@@ -61,7 +61,7 @@ A production-grade FastAPI application featuring dynamic vector database routing
 
 Start the FastAPI server:
 ```bash
-uv run uvicorn main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 The API documentation will be available at http://localhost:8000/docs.
