@@ -155,12 +155,25 @@
             const system_prompt_msg = "You are a helpful and friendly, technical AI assistant.";
             const rag_use = "true";
             const db_provider = "pinecone";
+            const index_name = "test-hybrid-collection";
+            const dimension = 1536;
+            const top_k = 10;
+            const rerank_top_n = 5;
 
             try {
                 const response = await fetch('http://localhost:8000/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: conversationHistory, system_prompt: system_prompt_msg, use_rag:rag_use, db_provider:db_provider})
+                    body: JSON.stringify({ 
+                        messages: conversationHistory,
+                        system_prompt: system_prompt_msg,
+                        use_rag:rag_use,
+                        db_provider:db_provider,
+                        index_name:index_name,
+                        dimension:dimension,
+                        top_k:top_k,
+                        rerank_top_n:rerank_top_n
+                    })
                 });
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

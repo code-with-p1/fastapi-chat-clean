@@ -33,6 +33,8 @@ async def _prepare_rag_system_prompt(body: ChatRequest | SyncChatRequest, curren
     context = await fetch_rag_context(
         query=latest_query,
         db_provider=body.db_provider,
+        index_name=body.index_name,
+        dimension=body.dimension,
         top_k=getattr(body, "top_k", 10),
         rerank_top_n=getattr(body, "rerank_top_n", 5)
     )
@@ -69,8 +71,6 @@ async def chat_stream(
         
         # Inject RAG context dynamically
         final_system_prompt = await _prepare_rag_system_prompt(body, body.system_prompt)
-
-        print(f"\nRAG Prompt (Chat Stream) : {final_system_prompt}")
 
         accumulated = []
 
@@ -132,8 +132,6 @@ async def chat_sync(
     
     # Inject RAG context dynamically
     final_system_prompt = await _prepare_rag_system_prompt(body, body.system_prompt)
-
-    print(f"\nRAG Prompt (Chat Sync) : {final_system_prompt}")
 
     t0 = time.perf_counter()
     text, meta = await sync_chat(

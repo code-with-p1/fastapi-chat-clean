@@ -24,7 +24,7 @@ class PineconeStore(BaseVectorStore):
     def __init__(self):
         self.pc = Pinecone()
         self.index = None
-        self.bm25 = BM25Encoder() # Initialize an empty encoder
+        self.bm25 = BM25Encoder().default()
 
     def create_index(self, index_name: str, dimension: int, recreate: bool = False):
         existing_indexes = self.pc.list_indexes().names()

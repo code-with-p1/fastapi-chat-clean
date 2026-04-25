@@ -48,14 +48,7 @@ A production-grade FastAPI application featuring dynamic vector database routing
    QDRANT_API_KEY="your-qdrant-api-key"
    MILVUS_URL="your-milvus-url"
    MILVUS_API_KEY="your-milvus-api-key"
-   ```
-
-4. **Initialize BM25 Weights (Pinecone Specific)**
-   If you plan to use Pinecone, you must fit and save the initial BM25 model before starting the server.
-   ```bash
-   python init_bm25.py
-   ```
-   
+   ```   
 
 ## Running the Application
 

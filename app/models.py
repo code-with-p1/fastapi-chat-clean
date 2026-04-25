@@ -25,6 +25,8 @@ class ChatRequest(BaseModel):
     max_tokens:    Optional[int]     = Field(None, ge=1, le=8192)
     use_rag: bool = Field(default=False, description="Enable RAG context injection")
     db_provider: Optional[str] = Field(default="pinecone", description="pinecone, weaviate, qdrant, milvus")
+    index_name: Optional[str] = Field(description="Index Name")
+    dimension : Optional[int] = Field(default=1536, description="Dimension")
     top_k: int = Field(default=10, description="Initial hybrid search depth")
     rerank_top_n: int = Field(default=5, description="Final documents to keep after Cohere re-ranking")
 
@@ -37,6 +39,8 @@ class SyncChatRequest(BaseModel):
     max_tokens:    Optional[int]     = Field(None, ge=1, le=8192)
     use_rag: bool = Field(default=False, description="Enable RAG context injection")
     db_provider: Optional[str] = Field(default="pinecone", description="pinecone, weaviate, qdrant, milvus")
+    index_name: Optional[str] = Field(description="Index Name")
+    dimension : Optional[int] = Field(default=1536, description="Dimension")
     top_k: int = Field(default=10, description="Initial hybrid search depth")
     rerank_top_n: int = Field(default=5, description="Final documents to keep after Cohere re-ranking")
 

@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 
 async def fetch_rag_context(
     query: str, 
-    db_provider: str, 
+    db_provider: str,
+    index_name: str,
+    dimension : int = 1536, 
     top_k: int = 10, 
     rerank_top_n: int = 5
 ) -> Optional[str]:
@@ -19,7 +21,8 @@ async def fetch_rag_context(
     try:
         def _run_pipeline():
             store = get_vector_store(db_provider)
-            initial_results = store.hybrid_search(query, top_k=top_k)
+            store.set_index(index_name)
+            initial_results = store.hybrid_search(query, dimension=dimension, top_k=top_k)
             return rerank_results(query=query, retrieved_docs=initial_results, top_n=rerank_top_n)
 
         final_results = await asyncio.to_thread(_run_pipeline)

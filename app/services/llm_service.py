@@ -28,7 +28,6 @@ def _to_lc(messages: list[ChatMessage], system_prompt: str | None) -> list:
             out.append(AIMessage(content=m.content))
         elif m.role == MessageRole.system:
             out.append(SystemMessage(content=m.content))
-    print(f"\n\n Final : {out}")
     return out
 
 
@@ -55,7 +54,6 @@ async def stream_chat(
 
     async def _run():
         try:
-            print(f"\n\n system_prompt : {system_prompt}")
             await llm.agenerate([_to_lc(messages, system_prompt)])
         except Exception as exc:
             logger.error("LLM stream error: %s", exc)
