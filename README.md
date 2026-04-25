@@ -78,10 +78,12 @@ curl -X POST "http://localhost:8000/api/setup_index" \
 ### Step 2: Ingest Documents
 Encode (dense + sparse) and upload your corpus.
 ```bash
-curl -X POST "http://localhost:8000/api/setup_index" \
+curl -X POST "http://localhost:8000/api/ingest" \
 -H "Content-Type: application/json" \
 -d '{
   "db_provider": "pinecone",
+  "index_name": "hybrid-index",
+  "dimension" : 1536,
   "documents": [
     "Training a cat requires patience and positive reinforcement.",
     "The feline curled up on the warm carpet beside the window."
@@ -105,6 +107,8 @@ curl -N -X POST "http://localhost:8000/chat/stream" \
   ],
   "use_rag": true,
   "db_provider": "pinecone",
+  "index_name": "hybrid-index",
+  "dimension" : 1536,
   "top_k": 10,
   "rerank_top_n": 5
 }'
