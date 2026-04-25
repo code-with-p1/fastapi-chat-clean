@@ -137,3 +137,9 @@ class DirectoryIngestRequest(BaseModel):
         default="percentile", 
         description="Used only if strategy is 'semantic'. Options: 'percentile', 'standard_deviation', 'interquartile'"
     )
+
+class ParentChildIngestRequest(BaseModel):
+    db_provider: str
+    index_name: str
+    dimension: int = 1536
+    text: str

@@ -157,6 +157,38 @@ async def test_directory_ingest_semantic():
         print("  Response:", r.json())
         assert r.status_code in [200, 400]
 
+async def test_parent_child_flow():
+    print("\n── Parent-Child Auto-Merging ─────────────")
+    test_text = (
+        "Artificial Intelligence involves machine learning. " * 20 + "\n\n" +
+        "Pandas is a Python data analysis library. It has DataFrames. " * 20
+    )
+    
+    async with httpx.AsyncClient(timeout=60) as c:
+        # 1. Ingest Parent-Child
+        r_ingest = await c.post(f"{BASE}/api/ingest/parent-child", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "dimension": 1536,
+            "text": test_text
+        })
+        print("  Ingest:", r_ingest.json())
+        assert r_ingest.status_code == 200
+        
+        # 2. Retrieve (Should return the massive parent block, not just the small child)
+        r_retrieve = await c.post(f"{BASE}/api/retrieve/parent-child", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "dimension": 1536,
+            "query": "What is Pandas?",
+            "top_k": 1,
+            "rerank_top_n": 1
+        })
+        data = r_retrieve.json()
+        print("  Retrieved Context Length:", len(data["context_ready"]))
+        # Verification: A standard chunk is ~400 chars. If Parent-Child worked, 
+        # the rolled-up context length should be significantly larger (the full parent).
+        assert len(data["context_ready"]) > 500 
 
 async def main():
     print("=" * 50)
@@ -171,7 +203,17 @@ async def main():
     await test_directory_ingest_token()
     await test_directory_ingest_invalid_dir()
     await test_directory_ingest_semantic()
+    await test_parent_child_flow()
     print("\n\n✅  All tests passed")
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# """
+# I want you to implement these step by step
+# 1. Integrate RAGAS - Fully functional Code with golden dataset (Use this RAG pdf file which we stored as chunk and prepare questions from this attached document)
+# 2. Integrate Langfuse - Already env variables added in env file, you just need to work on integrating it in code base.
+# 3. Hypothetical Document Embeddings (HyDE) - first identify if query is short and then only apply this mechanism dynamically using LLM
+# 4. Parent-Child Retrieval (Auto-Merging) - Implement this fully functional code with test endpoints to verify it properly.
+# """

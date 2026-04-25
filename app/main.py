@@ -9,10 +9,11 @@ from fastapi.responses import JSONResponse
 import os
 from pydantic import BaseModel, model_validator, Field
 from typing import List
-from app.models import SetupIndexRequest, IngestRequest, QueryRequest, DirectoryIngestRequest
+from app.models import SetupIndexRequest, IngestRequest, QueryRequest, DirectoryIngestRequest, ParentChildIngestRequest
 from app.vector_factory import get_vector_store
 from app.services.chunking_factory import get_chunker, extract_and_chunk_directory
 from app.vectordb.reranker import rerank_results
+from app.services.parent_child_service import ParentChildProcessor
 
 from app.config import get_settings
 from app.middleware.tracing import TracingMiddleware
@@ -169,7 +170,25 @@ async def ingest_local_directory(req: DirectoryIngestRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.post("/api/ingest/parent-child")
+async def ingest_parent_child(req: ParentChildIngestRequest):
+    try:
+        processor = ParentChildProcessor(req.db_provider, req.index_name, req.dimension)
+        parents, children = await processor.ingest_document(req.text)
+        return {"status": "success", "message": f"Ingested {parents} parents and {children} children."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/api/retrieve/parent-child")
+async def retrieve_parent_child(req: QueryRequest):
+    try:
+        processor = ParentChildProcessor(req.db_provider, req.index_name, req.dimension)
+        parents = await processor.retrieve_parents(req.query, top_k=req.top_k)
+        return {"query": req.query, "context_ready": "\n\n---\n\n".join(parents)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=settings.api_host, port=settings.api_port, reload=settings.debug)

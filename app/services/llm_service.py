@@ -9,6 +9,12 @@ from langchain_classic.callbacks.streaming_aiter import AsyncIteratorCallbackHan
 
 from app.config import get_settings
 from app.models import ChatMessage, MessageRole
+from langfuse.langchain import CallbackHandler
+
+from dotenv import load_dotenv
+load_dotenv()
+
+langfuse_handler = CallbackHandler()
 
 logger   = logging.getLogger(__name__)
 settings = get_settings()
@@ -48,7 +54,7 @@ async def stream_chat(
         temperature=temperature if temperature is not None else settings.temperature,
         max_tokens=max_tokens if max_tokens is not None else settings.max_tokens,
         streaming=True,
-        callbacks=[callback],
+        callbacks=[callback, langfuse_handler],
         timeout=settings.request_timeout_seconds,
     )
 
@@ -82,6 +88,7 @@ async def sync_chat(
         temperature=temperature if temperature is not None else 0.0,
         max_tokens=max_tokens if max_tokens is not None else settings.max_tokens,
         streaming=False,
+        callbacks=[langfuse_handler],
         timeout=settings.request_timeout_seconds,
     )
 
