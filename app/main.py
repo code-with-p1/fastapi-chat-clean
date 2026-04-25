@@ -6,10 +6,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-import re
+import os
 from pydantic import BaseModel, model_validator, Field
 from typing import List
+from app.models import SetupIndexRequest, IngestRequest, QueryRequest, DirectoryIngestRequest
 from app.vector_factory import get_vector_store
+from app.services.chunking_factory import get_chunker, extract_and_chunk_directory
 from app.vectordb.reranker import rerank_results
 
 from app.config import get_settings
@@ -26,66 +28,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class SetupIndexRequest(BaseModel):
-    db_provider: str         # "pinecone", "weaviate", "qdrant", "milvus"
-    index_name: str          # Name of the collection/index
-    dimension: int = 1536    # Default to OpenAI text-embedding-3-small dimension
-    recreate: bool = False   # Set to True to drop existing collections with the same name
-
-    @model_validator(mode='after')
-    def validate_index_name(self) -> 'SetupIndexRequest':
-        provider = self.db_provider.lower()
-        name = self.index_name
-
-        if provider == "pinecone":
-            # Pinecone: Lowercase alphanumeric and hyphens. Must start/end with alphanumeric. Max 45 chars.
-            if not re.match(r"^[a-z0-9][a-z0-9-]{0,43}[a-z0-9]$|^[a-z0-9]$", name):
-                raise ValueError(
-                    "Pinecone index names must be 1-45 characters long, contain only lowercase letters, "
-                    "numbers, and hyphens, and must start and end with an alphanumeric character."
-                )
-
-        elif provider == "weaviate":
-            # Weaviate: Class/Collection names must start with a capital letter, followed by alphanumeric/underscores.
-            if not re.match(r"^[A-Z][a-zA-Z0-9_]*$", name):
-                raise ValueError(
-                    "Weaviate collection names must start with a capital letter and contain only "
-                    "alphanumeric characters and underscores."
-                )
-
-        elif provider == "qdrant":
-            # Qdrant: Alphanumeric, hyphens, and underscores.
-            if not re.match(r"^[a-zA-Z0-9_-]+$", name):
-                raise ValueError(
-                    "Qdrant collection names must contain only alphanumeric characters, hyphens, and underscores."
-                )
-
-        elif provider == "milvus":
-            # Milvus: Must start with a letter or underscore, followed by alphanumeric/underscores. Max 255 chars.
-            if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]{0,254}$", name):
-                raise ValueError(
-                    "Milvus collection names must be under 255 characters, start with a letter or underscore, "
-                    "and contain only alphanumeric characters and underscores."
-                )
-                
-        else:
-            raise ValueError(f"Unsupported db_provider: '{provider}'. Supported providers are: pinecone, weaviate, qdrant, milvus.")
-
-        return self
-
-class IngestRequest(BaseModel):
-    db_provider: str  # "pinecone", "weaviate", "qdrant"
-    index_name: str          # Name of the collection/index
-    dimension: int = 1536    # Default to OpenAI text-embedding-3-small dimension
-    documents: List[str]
-
-class QueryRequest(BaseModel):
-    db_provider: str
-    query: str
-    index_name: str          # Name of the collection/index
-    dimension: int = 1536    # Default to OpenAI text-embedding-3-small dimension
-    top_k: int = 10
-    rerank_top_n: int = 5
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -187,6 +129,45 @@ async def retrieve_and_rerank(req: QueryRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ingest/directory")
+async def ingest_local_directory(req: DirectoryIngestRequest):
+    """
+    Scans a local directory for PDFs, chunks them according to the specified strategy, 
+    and ingests them into the dynamic vector database.
+    """
+    try:
+        # 1. Validate Directory
+        if not os.path.isdir(req.directory_path):
+            raise HTTPException(status_code=400, detail=f"Directory not found: {req.directory_path}")
+
+        # 2. Instantiate Dynamic Chunker
+        chunker = get_chunker(
+            strategy=req.chunking_strategy,
+            chunk_size=req.chunk_size,
+            chunk_overlap=req.chunk_overlap
+        )
+
+        # 3. Read and Chunk PDFs
+        chunks = extract_and_chunk_directory(req.directory_path, chunker)
+
+        if not chunks:
+            return {"status": "warning", "message": "No valid text could be extracted from PDFs in the directory."}
+
+        # 4. Route to Vector DB
+        store = get_vector_store(req.db_provider)
+        store.set_index(req.index_name)
+        store.ingest(corpus=chunks, dimension=req.dimension)
+
+        return {
+            "status": "success", 
+            "message": f"Successfully extracted, chunked, and ingested {len(chunks)} chunks into {req.db_provider}."
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 if __name__ == "__main__":
     import uvicorn

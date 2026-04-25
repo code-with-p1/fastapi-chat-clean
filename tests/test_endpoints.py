@@ -3,6 +3,7 @@
 Run:  python3 tests/test_endpoints.py
 Requires API running on localhost:8000
 """
+import os
 import asyncio
 import json
 import uuid
@@ -93,6 +94,53 @@ async def test_session(session_id: str):
         })
         print("  ", r2.json()["message"]["content"])
 
+async def test_directory_ingest_recursive():
+    print("\n── Directory Ingest (Recursive Chunking) ─")
+    # Ensure a dummy dir exists for the test so it doesn't hard-fail
+    os.makedirs("./test_data", exist_ok=True)
+    
+    async with httpx.AsyncClient(timeout=120) as c:
+        r = await c.post(f"{BASE}/api/ingest/directory", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "dimension": 1536,
+            "directory_path": "./test_data",
+            "chunking_strategy": "recursive",
+            "chunk_size": 1000,
+            "chunk_overlap": 100
+        })
+        print("  Response:", r.json())
+        assert r.status_code in [200, 400] # 400 is acceptable here if directory is empty
+
+
+async def test_directory_ingest_token():
+    print("\n── Directory Ingest (Token Chunking) ─────")
+    async with httpx.AsyncClient(timeout=120) as c:
+        r = await c.post(f"{BASE}/api/ingest/directory", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "dimension": 1536,
+            "directory_path": "./test_data",
+            "chunking_strategy": "token",
+            "chunk_size": 100,
+            "chunk_overlap": 10
+        })
+        print("  Response:", r.json())
+        assert r.status_code in [200, 400]
+
+
+async def test_directory_ingest_invalid_dir():
+    print("\n── Directory Ingest (Invalid Path) ───────")
+    async with httpx.AsyncClient(timeout=60) as c:
+        r = await c.post(f"{BASE}/api/ingest/directory", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "directory_path": "/this/path/does/not/exist",
+            "chunking_strategy": "recursive"
+        })
+        print("  Response:", r.json())
+        assert r.status_code == 400
+        assert "not found" in r.json()["detail"].lower()
 
 async def main():
     print("=" * 50)
@@ -103,6 +151,9 @@ async def main():
     await test_sync_with_rag()
     await test_stream_with_rag()
     await test_session(sid)
+    await test_directory_ingest_recursive()
+    await test_directory_ingest_token()
+    await test_directory_ingest_invalid_dir()
     print("\n\n✅  All tests passed")
 
 if __name__ == "__main__":
