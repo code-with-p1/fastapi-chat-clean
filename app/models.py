@@ -143,3 +143,9 @@ class ParentChildIngestRequest(BaseModel):
     index_name: str
     dimension: int = 1536
     text: str
+
+class ParentChildDirectoryIngestRequest(BaseModel):
+    db_provider: str
+    index_name: str
+    dimension: int = 1536
+    directory_path: str = Field(..., description="Absolute or relative path to local PDF directory")

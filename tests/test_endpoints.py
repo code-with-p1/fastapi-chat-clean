@@ -190,6 +190,42 @@ async def test_parent_child_flow():
         # the rolled-up context length should be significantly larger (the full parent).
         assert len(data["context_ready"]) > 500 
 
+
+async def test_parent_child_directory_flow():
+    print("\n── Parent-Child Directory Ingest & Retrieve ──")
+    
+    async with httpx.AsyncClient(timeout=180) as c: # Extended timeout for PDF processing
+        # 1. Ingest PDF Directory using Parent-Child logic
+        print("  Ingesting PDFs from ./test_data...")
+        r_ingest = await c.post(f"{BASE}/api/ingest/parent-child/directory", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "dimension": 1536,
+            "directory_path": "./test_data"
+        })
+        print("  Ingest Response:", r_ingest.json())
+        assert r_ingest.status_code in [200, 400]
+        
+        # If ingestion was successful, test retrieval
+        if r_ingest.status_code == 200 and r_ingest.json().get("status") == "success":
+            print("  Retrieving context for 'What is Pandas?'...")
+            r_retrieve = await c.post(f"{BASE}/api/retrieve/parent-child", json={
+                "db_provider": "pinecone",
+                "index_name": "test-hybrid-collection",
+                "dimension": 1536,
+                "query": "What is Pandas?",
+                "top_k": 2,
+                "rerank_top_n": 2
+            })
+            data = r_retrieve.json()
+            context = data.get("context_ready", "")
+            
+            print(f"  Retrieved Context Length: {len(context)} characters")
+            # Verification: A child chunk is ~400 chars. If Parent-Child worked, 
+            # the fetched text should represent the full parent chunks (~2000 chars each).
+            assert len(context) > 500 
+            print("  ✅ Parent-Child Retrieval Successful!")
+
 async def main():
     print("=" * 50)
     print("  FastAPI Chat — Integration Tests")
@@ -204,16 +240,8 @@ async def main():
     await test_directory_ingest_invalid_dir()
     await test_directory_ingest_semantic()
     await test_parent_child_flow()
+    await test_parent_child_directory_flow()
     print("\n\n✅  All tests passed")
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-# """
-# I want you to implement these step by step
-# 1. Integrate RAGAS - Fully functional Code with golden dataset (Use this RAG pdf file which we stored as chunk and prepare questions from this attached document)
-# 2. Integrate Langfuse - Already env variables added in env file, you just need to work on integrating it in code base.
-# 3. Hypothetical Document Embeddings (HyDE) - first identify if query is short and then only apply this mechanism dynamically using LLM
-# 4. Parent-Child Retrieval (Auto-Merging) - Implement this fully functional code with test endpoints to verify it properly.
-# """

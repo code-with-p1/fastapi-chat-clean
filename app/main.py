@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 import os
 from pydantic import BaseModel, model_validator, Field
 from typing import List
-from app.models import SetupIndexRequest, IngestRequest, QueryRequest, DirectoryIngestRequest, ParentChildIngestRequest
+from app.models import SetupIndexRequest, IngestRequest, QueryRequest, DirectoryIngestRequest, ParentChildIngestRequest, ParentChildDirectoryIngestRequest
 from app.vector_factory import get_vector_store
 from app.services.chunking_factory import get_chunker, extract_and_chunk_directory
 from app.vectordb.reranker import rerank_results
@@ -188,7 +188,29 @@ async def retrieve_parent_child(req: QueryRequest):
         return {"query": req.query, "context_ready": "\n\n---\n\n".join(parents)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+@app.post("/api/ingest/parent-child/directory")
+async def ingest_parent_child_directory(req: ParentChildDirectoryIngestRequest):
+    """
+    Scans a local directory for PDFs, creates Parent-Child chunks, 
+    stores Parents in Redis and Children in the Vector DB.
+    """
+    try:
+        processor = ParentChildProcessor(req.db_provider, req.index_name, req.dimension)
+        parents, children = await processor.ingest_directory(req.directory_path)
+        
+        if parents == 0 and children == 0:
+            return {"status": "warning", "message": "No valid text could be extracted or no PDFs found."}
+            
+        return {
+            "status": "success", 
+            "message": f"Successfully ingested {parents} parents and {children} children from {req.directory_path} into {req.db_provider}."
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=settings.api_host, port=settings.api_port, reload=settings.debug)

@@ -43,3 +43,11 @@ async def save_session(session_id: str, messages: list[dict]) -> None:
 async def load_session(session_id: str) -> list[dict]:
     raw = await get_redis().get(f"chat:session:{session_id}")
     return json.loads(raw) if raw else []
+
+async def set_value(key: str, value: str) -> None:
+    """Stores a generic string value in Redis."""
+    await get_redis().set(key, value)
+
+async def get_value(key: str) -> Optional[str]:
+    """Retrieves a generic string value from Redis."""
+    return await get_redis().get(key)
