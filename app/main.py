@@ -179,16 +179,6 @@ async def ingest_parent_child(req: ParentChildIngestRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.post("/api/retrieve/parent-child")
-async def retrieve_parent_child(req: QueryRequest):
-    try:
-        processor = ParentChildProcessor(req.db_provider, req.index_name, req.dimension)
-        parents = await processor.retrieve_parents(req.query, top_k=req.top_k)
-        return {"query": req.query, "context_ready": "\n\n---\n\n".join(parents)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/api/ingest/parent-child/directory")
 async def ingest_parent_child_directory(req: ParentChildDirectoryIngestRequest):
     """
@@ -208,6 +198,15 @@ async def ingest_parent_child_directory(req: ParentChildDirectoryIngestRequest):
         }
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/retrieve/parent-child")
+async def retrieve_parent_child(req: QueryRequest):
+    try:
+        processor = ParentChildProcessor(req.db_provider, req.index_name, req.dimension)
+        parents = await processor.retrieve_parents(req.query, top_k=req.top_k)
+        return {"query": req.query, "context_ready": "\n\n---\n\n".join(parents)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
