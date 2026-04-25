@@ -1,9 +1,9 @@
 import os
 from openai import OpenAI
-from typing import List, Dict, Any
+from typing import List
 from qdrant_client import QdrantClient, models as qdrant_models
 from fastembed import SparseTextEmbedding
-from app.vectordb.basevectorstore import BaseVectorStore
+from app.vectordb.common.basevectorstore import BaseVectorStore
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -19,10 +19,6 @@ class QdrantStore(BaseVectorStore):
     def __init__(self):
         self.client = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
         self.sparse_model = SparseTextEmbedding(model_name="prithvida/Splade_PP_en_v1")
-
-    def set_index(self, index_name="fastapi-chat-clean"):
-        self.collection_name = index_name
-        print(f"Qdrant Index : {self.collection_name}")
 
     def create_index(self, index_name: str, dimension: int, recreate: bool = False):
         existing = [c.name for c in self.client.get_collections().collections]
@@ -58,6 +54,10 @@ class QdrantStore(BaseVectorStore):
         
         return f"Qdrant collection '{index_name}' created with hybrid config."
 
+    def set_index(self, index_name="fastapi-chat-clean"):
+        self.collection_name = index_name
+        print(f"Qdrant Index : {self.collection_name}")
+
     def get_sparse_embedding(self, text: str):
         res = list(self.sparse_model.embed([text]))[0]
         return qdrant_models.SparseVector(indices=res.indices.tolist(), values=res.values.tolist())
@@ -88,3 +88,45 @@ class QdrantStore(BaseVectorStore):
             with_payload=True
         )
         return [{"text": hit.payload["text"], "score": hit.score} for hit in results.points]
+
+
+# =====================================================================
+# Testing Block
+# =====================================================================
+if __name__ == "__main__":
+    print("--- Starting Qdrant End-to-End Test ---")
+    
+    # 1. Initialize parameters
+    TEST_DIMENSION = 1536
+    TEST_INDEX = "test-hybrid-collection"
+    test_corpus = [
+        "A fluffy cat is sleeping on the rug near the fireplace.",
+        "The dog is chasing a ball in the backyard.",
+        "Python is a versatile programming language for data science.",
+        "Milvus supports hybrid search using dense and sparse vectors."
+    ]
+    test_query = "feline resting indoors"
+
+    # 2. Instantiate Store
+    store = QdrantStore()
+
+    # 3. Create Index (with recreate=True to ensure clean state)
+    print(f"\n[Test Setup] Creating index '{TEST_INDEX}'...")
+    creation_msg = store.create_index(index_name=TEST_INDEX, dimension=TEST_DIMENSION, recreate=True)
+    print(creation_msg)
+
+    # 4. Set Index
+    store.set_index(TEST_INDEX)
+
+    # 5. Ingest Corpus (This now automatically fits BM25!)
+    print("\n[Test] Running Ingestion...")
+    store.ingest(corpus=test_corpus, dimension=TEST_DIMENSION)
+    
+    # 6. Hybrid Search
+    print(f"\n[Test] Running Hybrid Search for query: '{test_query}'")
+    search_results = store.hybrid_search(query=test_query, dimension=TEST_DIMENSION, top_k=2)
+    
+    for i, res in enumerate(search_results, 1):
+        print(f"  Rank {i} | Score: {res['score']:.4f} | Text: {res['text']}")
+        
+    print("\n--- Test Complete ---")
