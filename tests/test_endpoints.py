@@ -142,6 +142,22 @@ async def test_directory_ingest_invalid_dir():
         assert r.status_code == 400
         assert "not found" in r.json()["detail"].lower()
 
+
+async def test_directory_ingest_semantic():
+    print("\n── Directory Ingest (Semantic Chunking) ──")
+    async with httpx.AsyncClient(timeout=300) as c: # Semantic takes a bit longer due to embedding calls
+        r = await c.post(f"{BASE}/api/ingest/directory", json={
+            "db_provider": "pinecone",
+            "index_name": "test-hybrid-collection",
+            "dimension": 1536,
+            "directory_path": "./test_data",
+            "chunking_strategy": "semantic",
+            "semantic_threshold_type": "percentile"
+        })
+        print("  Response:", r.json())
+        assert r.status_code in [200, 400]
+
+
 async def main():
     print("=" * 50)
     print("  FastAPI Chat — Integration Tests")
@@ -154,6 +170,7 @@ async def main():
     await test_directory_ingest_recursive()
     await test_directory_ingest_token()
     await test_directory_ingest_invalid_dir()
+    await test_directory_ingest_semantic()
     print("\n\n✅  All tests passed")
 
 if __name__ == "__main__":

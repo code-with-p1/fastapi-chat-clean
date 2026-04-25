@@ -130,6 +130,10 @@ class DirectoryIngestRequest(BaseModel):
     index_name: str
     dimension: int = 1536
     directory_path: str = Field(..., description="Absolute or relative path to the local directory containing PDFs")
-    chunking_strategy: str = Field(default="recursive", description="'recursive' or 'token'")
+    chunking_strategy: str = Field(default="recursive", description="'recursive', 'token', or 'semantic'")
     chunk_size: int = Field(default=1000, description="Size of each chunk")
     chunk_overlap: int = Field(default=200, description="Overlap between consecutive chunks")
+    semantic_threshold_type: str = Field(
+        default="percentile", 
+        description="Used only if strategy is 'semantic'. Options: 'percentile', 'standard_deviation', 'interquartile'"
+    )

@@ -145,14 +145,15 @@ async def ingest_local_directory(req: DirectoryIngestRequest):
         chunker = get_chunker(
             strategy=req.chunking_strategy,
             chunk_size=req.chunk_size,
-            chunk_overlap=req.chunk_overlap
+            chunk_overlap=req.chunk_overlap,
+            semantic_threshold_type=req.semantic_threshold_type
         )
 
         # 3. Read and Chunk PDFs
         chunks = extract_and_chunk_directory(req.directory_path, chunker)
 
         if not chunks:
-            return {"status": "warning", "message": "No valid text could be extracted from PDFs in the directory."}
+            return {"status": "warning", "message": "No valid text could be extracted."}
 
         # 4. Route to Vector DB
         store = get_vector_store(req.db_provider)

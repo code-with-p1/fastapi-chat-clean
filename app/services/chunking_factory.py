@@ -3,6 +3,8 @@ import glob
 from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_openai import OpenAIEmbeddings
 
 class BaseChunker:
     """Base strategy for document chunking."""
@@ -11,7 +13,7 @@ class BaseChunker:
 
 class RecursiveChunker(BaseChunker):
     """Splits text by characters, recursively trying to keep paragraphs/sentences together."""
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200, **kwargs):
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size, 
             chunk_overlap=chunk_overlap,
@@ -23,7 +25,7 @@ class RecursiveChunker(BaseChunker):
 
 class TokenChunker(BaseChunker):
     """Splits text strictly by LLM tokens (using tiktoken/OpenAI encodings)."""
-    def __init__(self, chunk_size: int = 250, chunk_overlap: int = 50):
+    def __init__(self, chunk_size: int = 250, chunk_overlap: int = 50, **kwargs):
         self.splitter = TokenTextSplitter(
             chunk_size=chunk_size, 
             chunk_overlap=chunk_overlap
@@ -32,17 +34,32 @@ class TokenChunker(BaseChunker):
     def chunk(self, text: str) -> List[str]:
         return self.splitter.split_text(text)
 
-def get_chunker(strategy: str, chunk_size: int, chunk_overlap: int) -> BaseChunker:
+class SemanticStrategy(BaseChunker):
+    """Splits text dynamically when the semantic topic changes."""
+    def __init__(self, semantic_threshold_type: str = "percentile", **kwargs):
+        # We reuse your existing embedding model to calculate similarities
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        self.splitter = SemanticChunker(
+            embeddings, 
+            breakpoint_threshold_type=semantic_threshold_type
+        )
+
+    def chunk(self, text: str) -> List[str]:
+        # The semantic chunker handles sentence splitting and grouping automatically
+        return self.splitter.split_text(text)
+
+def get_chunker(strategy: str, **kwargs) -> BaseChunker:
     """Factory to retrieve the desired chunking strategy."""
     strategies = {
         "recursive": RecursiveChunker,
-        "token": TokenChunker
+        "token": TokenChunker,
+        "semantic": SemanticStrategy
     }
     
     if strategy.lower() not in strategies:
-        raise ValueError(f"Unsupported chunking strategy: {strategy}. Use 'recursive' or 'token'.")
+        raise ValueError(f"Unsupported chunking strategy: {strategy}. Use 'recursive', 'token', or 'semantic'.")
         
-    return strategies[strategy.lower()](chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    return strategies[strategy.lower()](**kwargs)
 
 def extract_and_chunk_directory(directory_path: str, chunker: BaseChunker) -> List[str]:
     """Reads all PDFs in a directory recursively and applies the chunker."""
