@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -60,9 +61,9 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(chat.router)
 
-    @app.get("/", include_in_schema=False)
-    async def root():
-        return {"service": settings.app_name, "version": settings.app_version, "docs": "/docs"}
+    # @app.get("/", include_in_schema=False)
+    # async def root():
+    #     return {"service": settings.app_name, "version": settings.app_version, "docs": "/docs"}
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request, exc):
@@ -72,6 +73,20 @@ def create_app() -> FastAPI:
     return app
 
 app = create_app()
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HTML_PATH = os.path.join(BASE_DIR, "templates", "chat.html")
+
+print(HTML_PATH)
+
+@app.get("/", response_class=HTMLResponse, tags=["UI"])
+async def serve_chat_ui():
+    """Serves the frontend Chat UI."""
+    try:
+        with open(HTML_PATH, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Chat UI HTML file not found. Ensure 'app/templates/chat.html' exists.")
 
 @app.post("/api/setup_index")
 async def setup_database_index(req: SetupIndexRequest):
