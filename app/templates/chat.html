@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic RAG Chatbot</title>
+    <title>Agentic RAG Assistant</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -60,6 +60,7 @@
             color: #050505;
             align-self: flex-start;
             border-bottom-left-radius: 4px;
+            min-width: 40px;
         }
         #input-container {
             padding: 15px;
@@ -97,6 +98,28 @@
             background: #ccc;
             cursor: not-allowed;
         }
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            height: 24px;
+            padding: 0 4px;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #666;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -116,10 +139,8 @@
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
 
-        // Maintain conversation history
         let conversationHistory = [];
 
-        // Allow pressing "Enter" to send
         chatInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 sendMessage();
@@ -136,6 +157,17 @@
             return msgDiv;
         }
 
+        // Function to inject the typing animation HTML
+        function showTypingIndicator(element) {
+            element.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+        }
+
         async function sendMessage() {
             const userText = chatInput.value.trim();
             if (!userText) return;
@@ -149,12 +181,14 @@
             // 2. Add to history
             conversationHistory.push({ role: "user", content: userText });
 
-            // 3. Create empty bot message bubble for the stream
+            // 3. Create bot message bubble and instantly show typing animation
             const botMessageDiv = appendMessage('bot', '');
+            showTypingIndicator(botMessageDiv);
+            
+            // Flag to track when we need to clear the animation
+            let isFirstToken = true; 
 
             const system_prompt_msg = "You are a helpful and friendly, technical AI assistant.";
-            
-            // FIXED: Using true booleans instead of strings for Pydantic validation
             const rag_use = true; 
             const db_provider = "pinecone";
             const index_name = "test-hybrid-collection";
@@ -163,7 +197,6 @@
             const rerank_top_n = 5;
 
             try {
-                // FIXED: Relative URL routing so it automatically uses the host it's served on
                 const response = await fetch('/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -189,7 +222,6 @@
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) {
-                        console.log("Stream completely finished.");
                         break;
                     }
 
@@ -215,7 +247,16 @@
                                         const tokenText = parsedData.data; 
                                         
                                         if (tokenText) {
-                                            botMessageDiv.textContent += tokenText;
+                                            // --- NEW: Clear animation on first token ---
+                                            if (isFirstToken) {
+                                                botMessageDiv.innerHTML = ''; // Wipe out the dots
+                                                isFirstToken = false;
+                                            }
+
+                                            // We use append() or += to build text safely
+                                            const textNode = document.createTextNode(tokenText);
+                                            botMessageDiv.appendChild(textNode);
+                                            
                                             completeBotResponse += tokenText;
                                             chatMessages.scrollTop = chatMessages.scrollHeight;
                                         }
@@ -232,6 +273,10 @@
 
             } catch (error) {
                 console.error("Fetch Error:", error);
+                // If it failed before the first token, clear the animation
+                if (isFirstToken) {
+                    botMessageDiv.innerHTML = ''; 
+                }
                 botMessageDiv.textContent = 'Error: ' + error.message;
                 botMessageDiv.style.color = 'red';
             } finally {
