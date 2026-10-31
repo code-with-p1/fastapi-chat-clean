@@ -140,7 +140,7 @@ async def run_evaluation() -> None:
 
     # LLM provider — llm_factory is the non-deprecated ragas 0.4.x API
     openai_client = OpenAI()
-    ragas_llm = llm_factory("gpt-4o-mini", client=openai_client)
+    ragas_llm = llm_factory("gpt-5.1", client=openai_client)
 
     # Embedding provider — our custom class; no langchain, no deprecation warnings
     ragas_embeddings = NativeOpenAIEmbeddings(model="text-embedding-3-small")

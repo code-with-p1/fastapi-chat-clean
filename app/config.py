@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-
+import os
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = False
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = int(os.environ.get("PORT", 10000))
 
     openai_api_key: str = Field(..., description="OpenAI API key")
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-5.1"
     max_tokens: int = 2048
     temperature: float = 0.7
     request_timeout_seconds: int = 120

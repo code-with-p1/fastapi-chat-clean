@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 async def generate_hyde_query(short_query: str) -> str:
     """Generates a hypothetical answer to improve semantic retrieval."""
     logger.info("Query is short. Dynamically applying HyDE...")
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    llm = ChatOpenAI(model="gpt-5.1", temperature=0.3)
     messages = [
         SystemMessage(content="You are an expert financial and data science AI. Write a brief, factual, hypothetical paragraph answering the user's question to assist with semantic vector search. Do not include introductory filler."),
         HumanMessage(content=short_query)
